@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Error</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 40px;
+            background-color: #f8f9fa;
+        }
+        .error-container { 
+            text-align: center; 
+            padding: 20px; 
+            border: 1px solid #f5c6cb; 
+            background-color: #f8d7da; 
+            color: #721c24; 
+            border-radius: 5px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #721c24;
+        }
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <h1>Error</h1>
+        <p>{{.error}}</p>
+        <br>
+        <a href="/admin/dashboard">Return to Dashboard</a> | 
+        <a href="/admin/Authentication/login">Login Again</a>
+    </div>
+</body>
+</html>
