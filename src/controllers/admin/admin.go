@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -47,24 +48,41 @@ func (h *AuthHandler) LoginAdmin(c *gin.Context) {
 	}
 
 	if err := c.ShouldBind(&req); err != nil {
-		c.HTML(http.StatusBadRequest, "login.html", gin.H{"error": "Invalid input"})
+		if strings.Contains(c.GetHeader("Accept"), "text/html") {
+			c.HTML(http.StatusBadRequest, "login.html", gin.H{"error": "Invalid input"})
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		}
 		return
 	}
 
 	token, err := h.Services.LoginAdmin(req.Email, req.Password)
 	if err != nil {
-		c.HTML(http.StatusUnauthorized, "login.html", gin.H{"error": err.Error()})
+		if strings.Contains(c.GetHeader("Accept"), "text/html") {
+			c.HTML(http.StatusUnauthorized, "login.html", gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		}
 		return
 	}
 
-	// set cookie
-	c.SetCookie("admin_token", token, 3600, "/", "", false, true)
-
-	c.Redirect(http.StatusSeeOther, "/admin/dashboard")
+	// Set cookie for browser requests
+	if strings.Contains(c.GetHeader("Accept"), "text/html") {
+		c.SetCookie("admin_token", token, 3600, "/", "", false, true)
+		c.Redirect(http.StatusSeeOther, "/admin/dashboard")
+	} else {
+		// Return token for API requests (like Postman)
+		c.JSON(http.StatusOK, gin.H{"token": token})
+	}
 }
 
 // admin logout
 func (h *AuthHandler) Logout(c *gin.Context) {
 	c.SetCookie("admin_token", "", -1, "/", "", false, true)
-	c.Redirect(http.StatusSeeOther, "/admin/Authentication/login")
+
+	if strings.Contains(c.GetHeader("Accept"), "text/html") {
+		c.Redirect(http.StatusSeeOther, "/admin/Authentication/login")
+	} else {
+		c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
+	}
 }

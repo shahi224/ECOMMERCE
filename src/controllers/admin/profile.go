@@ -1,14 +1,12 @@
 package controllers
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 
 	services "ECOMMERCE/src/services/admin"
-	"ECOMMERCE/utils/helper"
 )
 
 type ProfileController struct {
@@ -21,21 +19,14 @@ func NewProfileController(service services.ProfileService) *ProfileController {
 
 // Show profile page
 func (pc *ProfileController) ShowProfile(c *gin.Context) {
-	// Get adminID from JWT token instead of context
-	tokenString, err := c.Cookie("admin_token")
-	if err != nil {
+	// Get adminID from context (set by middleware)
+	adminID, exists := c.Get("adminID")
+	if !exists {
 		c.HTML(http.StatusUnauthorized, "error.html", gin.H{"error": "Unauthorized access"})
 		return
 	}
 
-	// Extract admin ID from token
-	adminID, err := extractAdminIDFromToken(tokenString)
-	if err != nil {
-		c.HTML(http.StatusUnauthorized, "error.html", gin.H{"error": "Invalid token: " + err.Error()})
-		return
-	}
-
-	admin, err := pc.service.GetAdmin(adminID)
+	admin, err := pc.service.GetAdmin(adminID.(uint))
 	if err != nil {
 		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": "Failed to fetch profile: " + err.Error()})
 		return
@@ -46,21 +37,14 @@ func (pc *ProfileController) ShowProfile(c *gin.Context) {
 
 // Handle profile update
 func (pc *ProfileController) UpdateProfile(c *gin.Context) {
-	// Get adminID from JWT token
-	tokenString, err := c.Cookie("admin_token")
-	if err != nil {
+	// Get adminID from context (set by middleware)
+	adminID, exists := c.Get("adminID")
+	if !exists {
 		c.HTML(http.StatusUnauthorized, "error.html", gin.H{"error": "Unauthorized access"})
 		return
 	}
 
-	// Extract admin ID from token
-	adminID, err := extractAdminIDFromToken(tokenString)
-	if err != nil {
-		c.HTML(http.StatusUnauthorized, "error.html", gin.H{"error": "Invalid token: " + err.Error()})
-		return
-	}
-
-	admin, err := pc.service.GetAdmin(adminID)
+	admin, err := pc.service.GetAdmin(adminID.(uint))
 	if err != nil {
 		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": "Profile not found: " + err.Error()})
 		return
@@ -91,21 +75,30 @@ func (pc *ProfileController) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	c.Redirect(http.StatusSeeOther, "/admin/profile")
+	// Add success message and redirect to profile page
+	c.Redirect(http.StatusSeeOther, "/admin/profile?success=Profile updated successfully")
 }
 
-// Helper function to extract admin ID from JWT token
-func extractAdminIDFromToken(tokenString string) (uint, error) {
-	claims, err := helper.ParseToken(tokenString)
+// Add this method to handle the redirect with success message
+func (pc *ProfileController) ShowProfileWithMessage(c *gin.Context) {
+	// Get adminID from context (set by middleware)
+	adminID, exists := c.Get("adminID")
+	if !exists {
+		c.HTML(http.StatusUnauthorized, "error.html", gin.H{"error": "Unauthorized access"})
+		return
+	}
+
+	admin, err := pc.service.GetAdmin(adminID.(uint))
 	if err != nil {
-		return 0, err
+		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": "Failed to fetch profile: " + err.Error()})
+		return
 	}
 
-	// Your JWT uses "user_id" claim, not "admin_id"
-	userIDFloat, ok := claims["user_id"].(float64)
-	if !ok {
-		return 0, errors.New("invalid user ID in token")
-	}
+	// Check for success message in query params
+	success := c.Query("success")
 
-	return uint(userIDFloat), nil
+	c.HTML(http.StatusOK, "profile.html", gin.H{
+		"Admin":   admin,
+		"success": success,
+	})
 }

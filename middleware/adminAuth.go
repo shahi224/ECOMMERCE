@@ -30,8 +30,20 @@ func AdminAuthMiddleware() gin.HandlerFunc {
 
 		// Try Authorization Header first
 		authHeader := c.GetHeader("Authorization")
-		if authHeader != "" && strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
-			tokenStr = strings.TrimPrefix(authHeader, "Bearer ")
+		if authHeader != "" {
+			// Split the header to handle case variations and extra spaces
+			parts := strings.Fields(authHeader)
+			if len(parts) == 2 && strings.EqualFold(parts[0], "bearer") {
+				tokenStr = parts[1]
+			} else if len(parts) == 1 {
+				// Handle case where only token is provided without "Bearer"
+				tokenStr = parts[0]
+			} else {
+				// Handle invalid header format
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Authorization header format"})
+				c.Abort()
+				return
+			}
 		} else {
 			// Try Cookie
 			cookie, err := c.Cookie("admin_token")
@@ -65,6 +77,15 @@ func AdminAuthMiddleware() gin.HandlerFunc {
 			}
 			c.Abort()
 			return
+		}
+
+		// Extract admin ID from token and set in context
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			if userID, exists := claims["user_id"]; exists {
+				if userIDFloat, ok := userID.(float64); ok {
+					c.Set("adminID", uint(userIDFloat))
+				}
+			}
 		}
 
 		c.Next()
